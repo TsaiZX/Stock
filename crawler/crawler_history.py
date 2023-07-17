@@ -56,7 +56,7 @@ class StockCrawler:
         data.columns = column
         return data
     
-    def preprocess_data(self, data):
+    def clean_price_data(self, data):
         # clean data type
         # change date time format
         for i in range(len(data["Date"])):
@@ -67,32 +67,36 @@ class StockCrawler:
             data[col] = data[col].astype(float)
         return data
 
-    def insert_toDB(self, data):
-        print(data)
-        data.to_sql(name=f"tb_{code}", con=self.dbEngine, schema="Stock_History", if_exists="append", index=False,
-                    dtype={
-                        "pk_id": Integer,    
-                        "Date": Date,
-                        "Capacity": Integer,
-                        "Turnover": Integer,
-                        "Open": Float,
-                        "High": Float,
-                        "Low": Float,
-                        "Close": Float,
-                        "Change": String(10),
-                        "Transcation": Integer,
-                        })
-        
+    def insert_toDB(self, data, dtype, schema):
+        # insert data to database
+        data.to_sql(name=f"tb_{code}", con=self.dbEngine, schema=schema, if_exists="append", index=False,dtype=dtype)
+    
+    def price_data(self, code, date):
+        # Processing daily stock price data.
+        df = self.fetch_price_data(code, date)
+        df = self.clean_price_data(df)
+        dtype = {
+                "pk_id": Integer,    
+                "Date": Date,
+                "Capacity": Integer,
+                "Turnover": Integer,
+                "Open": Float,
+                "High": Float,
+                "Low": Float,
+                "Close": Float,
+                "Change": String(10),
+                "Transcation": Integer,
+                }
+        schema = "Stock_History"
+        self.insert_toDB(df, dtype, schema)
+
+
 if __name__ == "__main__":
     sc = StockCrawler()
     codeList = sc.get_code_list()
 
     for code in codeList:
         print("Processing Code :" + code)
-        sc.check_code_schema(code)
         currentDate = time.strftime("%Y%m%d")
-        df = sc.fetch_price_data(code, currentDate)
-        df = sc.preprocess_data(df)
-        sc.insert_toDB(df)
-        print(df)
+        sc.price_data(code, currentDate)
         break
